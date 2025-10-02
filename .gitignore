@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# linting rules
+.cursor
+.kiro
+.vscode
+.zed
