@@ -2,8 +2,10 @@
 
 import { ArrowLeft, GitBranch, Github, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,15 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { githubSignIn } from "@/lib/actions/user.actions";
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
-import Loader from "@/components/loader";
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const {data: session, isPending } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function AuthPage() {
   }, [session, router]);
 
   if (isPending || session) {
-    return <Loader />;
+    return <Spinner />;
   }
 
   const handleGitHubLogin = async () => {
@@ -41,12 +41,12 @@ export default function AuthPage() {
       toast.success("Login successful! Welcome back 👋.", {
         duration: 3000,
         position: "bottom-right",
-      })
+      });
     } catch (error) {
       toast.error("GitHub sign-in failed.", {
         duration: 3000,
         position: "bottom-right",
-      })
+      });
     } finally {
       setIsLoading(false);
     }

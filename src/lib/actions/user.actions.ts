@@ -1,7 +1,7 @@
-"use server"
+"use server";
 
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 
 export const githubSignIn = async () => {
   const { url } = await auth.api.signInSocial({
@@ -9,10 +9,9 @@ export const githubSignIn = async () => {
       provider: "github",
       callbackURL: "/repositories",
     },
-  })
+  });
 
   if (url) {
-    redirect(url)
+    redirect(url);
   }
-}
-
+};

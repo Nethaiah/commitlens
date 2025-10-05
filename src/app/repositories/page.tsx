@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { Header } from "@/components/header"
-import { useEffect } from "react"
-import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import Loader from "@/components/loader";
+import { useEffect } from "react";
+import { Header } from "@/components/header";
+import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "@/lib/auth-client";
 
 export default function Repositories() {
   const { data: session, isPending } = authClient.useSession();
@@ -17,7 +17,7 @@ export default function Repositories() {
   }, [session, router]);
 
   if (isPending || !session) {
-    return <Loader/>
+    return <Spinner />;
   }
 
   return (
@@ -25,5 +25,5 @@ export default function Repositories() {
       <Header />
       <h1>Repo</h1>
     </div>
-  )
+  );
 }

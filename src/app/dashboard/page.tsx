@@ -1,12 +1,12 @@
-"use client"
+"use client";
 
-import { Header } from "@/components/header"
-import { useEffect } from "react";
-import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import Loader  from "@/components/loader"
+import { useEffect } from "react";
+import { Header } from "@/components/header";
+import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "@/lib/auth-client";
 
-export default function Dashboard () {
+export default function Dashboard() {
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
 
@@ -17,13 +17,13 @@ export default function Dashboard () {
   }, [session, router]);
 
   if (isPending || !session) {
-    return <Loader/>
+    return <Spinner />;
   }
 
   return (
     <div>
-      <Header/>
+      <Header />
       <h1>Dashboard</h1>
     </div>
-  )
+  );
 }
