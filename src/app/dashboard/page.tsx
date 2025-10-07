@@ -1,23 +1,15 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/header";
-import { Spinner } from "@/components/ui/spinner";
-import { authClient } from "@/lib/auth-client";
 
-export default function Dashboard() {
-  const { data: session, isPending } = authClient.useSession();
-  const router = useRouter();
+export default async function Dashboard() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-  useEffect(() => {
-    if (!session) {
-      router.replace("/login");
-    }
-  }, [session, router]);
-
-  if (isPending || !session) {
-    return <Spinner />;
+  if (!session) {
+    return redirect("/login");
   }
 
   return (

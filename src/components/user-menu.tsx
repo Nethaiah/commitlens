@@ -1,6 +1,7 @@
+"use client";
+
 import { LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,49 +12,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
 
-export default function UserMenu() {
+type UserMenuProps = {
+  name: string;
+  image: string;
+}
+
+export function UserMenu({ name, image }: UserMenuProps) {
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
 
-  if (isPending) {
-    return <Spinner />;
-  }
-
-  if (!session) {
-    return (
-      <Link href="/login">
-        <Button
-          className="bg-primary px-8 text-base hover:bg-primary/90"
-          size="lg"
-        >
-          Get started
-        </Button>
-      </Link>
-    );
-  }
-
-  const handleLogout = () => {
-    authClient.signOut({
+  async function handleLogout() {
+    await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          toast.success("Signed out successfully.", {
+          router.push("/login");
+          toast.success("Logged out successfully.", {
             duration: 3000,
             position: "bottom-right",
           });
-          router.push("/");
         },
         onError: () => {
-          toast.error("Failed to sign out. Please try again.", {
+          toast.error("Failed to log out.", {
             duration: 3000,
             position: "bottom-right",
           });
         },
       },
     });
-  };
+  }
 
   return (
     <DropdownMenu>
@@ -61,18 +49,18 @@ export default function UserMenu() {
         <Button className="flex h-auto items-center gap-2 p-2" variant="ghost">
           <Avatar className="h-8 w-8">
             <AvatarImage
-              alt={session.user?.name || "User"}
-              src={session.user?.image || "/placeholder.svg"}
+              alt={name}
+              src={image}
             />
             <AvatarFallback>
-              {session.user?.name
+              {name
                 ?.split(" ")
                 .map((n) => n[0])
                 .join("") || "U"}
             </AvatarFallback>
           </Avatar>
           <span className="hidden font-medium text-sm sm:inline">
-            {session.user?.name || "User"}
+            {name}
           </span>
         </Button>
       </DropdownMenuTrigger>

@@ -5,18 +5,30 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
-import UserMenu from "@/components/user-menu";
+import { UserMenu } from "@/components/user-menu";
 import { authClient } from "@/lib/auth-client";
+import { useState, useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { HeaderSkeleton } from "./header-skeleton";
 
 export function Header() {
   const pathname = usePathname();
+  const { data: session, isPending } = authClient.useSession();
+  const [isClient, setIsClient] = useState(false);
 
-  const { data: session } = authClient.useSession();
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const navItems = [
     { href: "/repositories", label: "Repositories" },
     { href: "/dashboard", label: "Dashboard" },
   ];
+
+  // Show loading skeleton on initial render
+  if (!isClient || isPending) {
+    return <HeaderSkeleton />;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-border border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -32,7 +44,7 @@ export function Header() {
           <>
             <nav className="hidden items-center gap-6 md:flex">
               {navItems.map((item) => (
-                <Link href={item.href as any} key={item.href}>
+                <Link href={item.href} key={item.href}>
                   <Button
                     size="sm"
                     variant={pathname === item.href ? "default" : "ghost"}
@@ -45,13 +57,23 @@ export function Header() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <UserMenu />
+              <UserMenu
+                image={session?.user?.image || "/placeholder.svg"}
+                name={session?.user?.name || "User"}
+              />
             </div>
           </>
         ) : (
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <UserMenu />
+            <Link href="/login">
+              <Button
+                className="bg-primary px-8 text-base hover:bg-primary/90"
+                size="lg"
+              >
+                Get started
+              </Button>
+            </Link>
           </div>
         )}
       </div>
