@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/header";
+import { RepositoriesPage } from "./_components/repositories";
 
 export default async function Repositories() {
   const session = await auth.api.getSession({
@@ -15,7 +16,7 @@ export default async function Repositories() {
   return (
     <div>
       <Header/>
-      <h1>Repo</h1>
+      <RepositoriesPage/>
     </div>
   );
 }
