@@ -30,6 +30,9 @@ export type Repository = {
   ownerType?: "User" | "Organization";
   fork?: boolean;
   archived?: boolean;
+  forks?: number;
+  defaultBranch?: string;
+  totalCommits?: number;
 };
 
 export type OverviewStats = {
@@ -47,6 +50,14 @@ export type OverviewStats = {
 const GITHUB_TOKEN =
   process.env.GITHUB_FINE_GRAINED_TOKEN || process.env.GITHUB_CLASSIC_TOKEN;
 
+function assertToken() {
+  if (!GITHUB_TOKEN) {
+    throw new Error(
+      "Missing GitHub token. Set GITHUB_FINE_GRAINED_TOKEN or GITHUB_CLASSIC_TOKEN in .env"
+    );
+  }
+}
+
 type GitHubRepo = {
   id: number;
   name: string;
@@ -58,6 +69,8 @@ type GitHubRepo = {
   fork: boolean;
   archived: boolean;
   owner: { login: string; type: "User" | "Organization" };
+  forks_count: number;
+  default_branch: string | null;
 };
 
 type GitHubCommitSummary = {
@@ -69,14 +82,6 @@ type GitHubCommitSummary = {
   };
   author: { login: string } | null;
 };
-
-function assertToken() {
-  if (!GITHUB_TOKEN) {
-    throw new Error(
-      "Missing GitHub token. Set GITHUB_FINE_GRAINED_TOKEN or GITHUB_CLASSIC_TOKEN in .env"
-    );
-  }
-}
 
 async function githubFetch<T>(
   path: string,
@@ -108,6 +113,40 @@ async function githubFetch<T>(
     );
   }
   return (await res.json()) as T;
+}
+
+// Hoisted once for performance
+const LAST_PAGE_RE = /[?&]page=(\d+)>; rel="last"/;
+
+async function fetchTotalCommits(
+  owner: string,
+  repo: string,
+  branch?: string
+): Promise<number> {
+  assertToken();
+  const url = new URL(`https://api.github.com/repos/${owner}/${repo}/commits`);
+  url.searchParams.set("per_page", "1");
+  if (branch) url.searchParams.set("sha", branch);
+  const res = await fetch(url.toString(), {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "CommitLens-App",
+    },
+    cache: "no-store",
+    next: { revalidate: 0 },
+  });
+  if (!res.ok) return 0;
+  const link = res.headers.get("link");
+  if (link?.includes('rel="last"')) {
+    const match = link.match(LAST_PAGE_RE);
+    const page = match ? Number(match[1]) : Number.NaN;
+    if (!Number.isNaN(page)) return page;
+  }
+  // No Link header means 0 or 1 commits
+  const arr = (await res.json()) as unknown[];
+  return Array.isArray(arr) ? arr.length : 0;
 }
 
 function toCommit(summary: GitHubCommitSummary): Commit {
@@ -147,6 +186,8 @@ function toRepository(repo: GitHubRepo, commits: Commit[]): Repository {
     ownerType: repo.owner?.type,
     fork: repo.fork,
     archived: repo.archived,
+    forks: repo.forks_count ?? 0,
+    defaultBranch: repo.default_branch ?? undefined,
   };
 }
 
@@ -159,6 +200,7 @@ export type ListReposParams = {
   affiliation?: string; // owner,collaborator,organization_member
   since?: string; // ISO date
   perPageCommits?: number; // recent commits per repo
+  includeTotalCommits?: boolean;
 };
 
 export async function fetchUserRepositories(
@@ -173,6 +215,7 @@ export async function fetchUserRepositories(
     affiliation = "owner,collaborator,organization_member",
     since,
     perPageCommits = 3,
+    includeTotalCommits = false,
   } = params;
 
   const repos = await githubFetch<GitHubRepo[]>("/user/repos", {
@@ -200,7 +243,19 @@ export async function fetchUserRepositories(
     } catch {
       commits = [];
     }
-    results.push(toRepository(r, commits));
+    const repoObj = toRepository(r, commits);
+    if (includeTotalCommits) {
+      try {
+        repoObj.totalCommits = await fetchTotalCommits(
+          r.owner.login,
+          r.name,
+          r.default_branch ?? undefined
+        );
+      } catch {
+        repoObj.totalCommits = undefined;
+      }
+    }
+    results.push(repoObj);
   }
   return results;
 }

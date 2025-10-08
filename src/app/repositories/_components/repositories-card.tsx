@@ -12,6 +12,10 @@ type RepoForCard = {
   language: string;
   stars: number;
   commits: { date?: string }[];
+  forks?: number;
+  defaultBranch?: string;
+  ownerLogin?: string;
+  totalCommits?: number;
 };
 
 export function RepositoryCard({ repo }: { repo: RepoForCard }) {
@@ -20,6 +24,21 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
     Python: "#3776ab",
     Go: "#00add8",
     JavaScript: "#f7df1e",
+  };
+
+  const timeAgo = (iso?: string) => {
+    if (!iso) return "No recent commits";
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return "No recent commits";
+    const diff = Math.max(0, Date.now() - t);
+    const s = Math.floor(diff / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return `${d} day${d === 1 ? "" : "s"} ago`;
+    if (h > 0) return `${h} hour${h === 1 ? "" : "s"} ago`;
+    if (m > 0) return `${m} minute${m === 1 ? "" : "s"} ago`;
+    return `${s} second${s === 1 ? "" : "s"} ago`;
   };
 
   return (
@@ -31,13 +50,12 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
             <CardTitle className="text-lg transition-colors group-hover:text-primary">
               {repo.name}
             </CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
           </div>
           <Badge variant="secondary" className="text-xs">
-            {repo.commits.length}
+            {repo.totalCommits ?? repo.commits.length}
           </Badge>
         </div>
-        <div className="text-sm text-muted-foreground">developer</div>
+        <div className="text-sm text-muted-foreground">{repo.ownerLogin ?? "unknown"}</div>
         <CardDescription className="line-clamp-2 flex-1">
           {repo.description}
         </CardDescription>
@@ -58,12 +76,16 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
           </div>
           <div className="flex items-center gap-1">
             <GitFork className="h-4 w-4" />
-            <span>{Math.floor(repo.stars * 0.2)}</span>
+            <span>{repo.forks ?? 0}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <GitBranch className="h-4 w-4" />
+            <span>{repo.defaultBranch ?? "default"}</span>
           </div>
         </div>
 
         <div className="mb-4 text-xs text-muted-foreground">
-          Updated {new Date(repo.commits[0]?.date || Date.now()).toLocaleDateString()} ago
+          Updated {timeAgo(repo.commits[0]?.date)}
         </div>
 
         <div className="mt-auto space-y-2">

@@ -20,6 +20,9 @@ type Repo = {
   ownerType?: "User" | "Organization";
   fork?: boolean;
   archived?: boolean;
+  forks?: number;
+  defaultBranch?: string;
+  totalCommits?: number;
 };
 import { RepositoryCard } from "./repositories-card";
 import { RepositoriesEmptyState } from "./repositories-empty";

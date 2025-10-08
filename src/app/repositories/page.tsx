@@ -21,6 +21,7 @@ export default async function Repositories() {
     visibility: "all",
     // affiliation ensures inclusion across roles
     affiliation: "owner,collaborator,organization_member",
+    includeTotalCommits: true,
   });
   const languages = await extractLanguages(repos);
   const overview = await computeOverviewStats(repos);
