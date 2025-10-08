@@ -7,27 +7,86 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { mockRepositories } from "@/lib/mock-data";
+// Define the repository shape used by this page to align with server data
+type Repo = {
+  id: string;
+  name: string;
+  description: string;
+  language: string;
+  stars: number;
+  commits: { id: string; date: string }[];
+  private?: boolean;
+  ownerLogin?: string;
+  ownerType?: "User" | "Organization";
+  fork?: boolean;
+  archived?: boolean;
+};
+import { RepositoryCard } from "./repositories-card";
+import { RepositoriesEmptyState } from "./repositories-empty";
+import { RepositoriesFilters } from "./repositories-filters";
 import { RepositoriesHeader } from "./repositories-header";
 import { RepositoriesOverview } from "./repositories-overview";
 import { RepositoriesToolbar } from "./repositories-toolbar";
-import { RepositoriesFilters } from "./repositories-filters";
-import { RepositoryCard } from "./repositories-card";
-import { RepositoriesEmptyState } from "./repositories-empty";
 
-export function RepositoriesPage() {
+type OverviewStats = {
+  totalRepos: number;
+  totalCommits: number;
+  totalStars: number;
+  languagesUsed: number;
+  privateRepos: number;
+  publicRepos: number;
+  avgCommitsPerRepo: number;
+  lastUpdated: string;
+  mostActiveRepo?: string;
+};
+
+export type RepositoriesPageProps = {
+  repos: Repo[];
+  languages: string[];
+  overview: OverviewStats;
+  lastSyncText?: string;
+  currentUserLogin: string;
+};
+
+export default function RepositoriesPage(props: RepositoriesPageProps) {
+  const { repos, languages, overview, lastSyncText, currentUserLogin } = props;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("updated");
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedVisibility, setSelectedVisibility] = useState<"all" | "public" | "private">("all");
+  const [selectedScope, setSelectedScope] = useState<"all" | "owner" | "collaborator" | "organization">("all");
+  const [hideForks, setHideForks] = useState<boolean>(false);
+  const [hideArchived, setHideArchived] = useState<boolean>(false);
 
-  const filteredRepos = mockRepositories.filter((repo) => {
+  const filteredRepos = repos.filter((repo) => {
     const matchesSearch =
       repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       repo.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesLanguage =
       selectedLanguage === "all" || repo.language === selectedLanguage;
-    return matchesSearch && matchesLanguage;
+    const isPrivate = repo.private === true;
+    const matchesVisibility =
+      selectedVisibility === "all" ||
+      (selectedVisibility === "public" && !isPrivate) ||
+      (selectedVisibility === "private" && isPrivate);
+    const isOwner = repo.ownerLogin === currentUserLogin;
+    const isOrg = repo.ownerType === "Organization";
+    const matchesScope =
+      selectedScope === "all" ||
+      (selectedScope === "owner" && isOwner) ||
+      (selectedScope === "collaborator" && !isOwner && !isOrg) ||
+      (selectedScope === "organization" && isOrg);
+    const passesFork = hideForks ? repo.fork !== true : true;
+    const passesArchived = hideArchived ? repo.archived !== true : true;
+    return (
+      matchesSearch &&
+      matchesLanguage &&
+      matchesVisibility &&
+      matchesScope &&
+      passesFork &&
+      passesArchived
+    );
   });
 
   const sortedRepos = [...filteredRepos].sort((a, b) => {
@@ -38,7 +97,6 @@ export function RepositoriesPage() {
         return b.stars - a.stars;
       case "commits":
         return b.commits.length - a.commits.length;
-      case "updated":
       default:
         return (
           new Date(b.commits[0]?.date || 0).getTime() -
@@ -47,36 +105,34 @@ export function RepositoriesPage() {
     }
   });
 
-  const languages = Array.from(
-    new Set(mockRepositories.map((repo) => repo.language))
-  );
-
-  const totalRepos = mockRepositories.length;
-  const totalCommits = mockRepositories.reduce(
-    (sum, repo) => sum + repo.commits.length,
-    0
-  );
-  const totalStars = mockRepositories.reduce(
-    (sum, repo) => sum + repo.stars,
-    0
-  );
-  const languagesUsed = languages.length;
-  const privateRepos = Math.floor(totalRepos * 0.3); // Mock private repos
-  const publicRepos = totalRepos - privateRepos;
-  const avgCommitsPerRepo = Math.round(totalCommits / totalRepos);
-  const lastUpdated = new Date().toLocaleDateString();
-  const mostActiveRepoName =
-    [...mockRepositories].sort((a, b) => b.commits.length - a.commits.length)[0]
-      ?.name || "";
+  const totalRepos = overview.totalRepos;
+  const totalCommits = overview.totalCommits;
+  const totalStars = overview.totalStars;
+  const languagesUsed = overview.languagesUsed;
+  const privateRepos = overview.privateRepos;
+  const publicRepos = overview.publicRepos;
+  const avgCommitsPerRepo = overview.avgCommitsPerRepo;
+  const lastUpdated = overview.lastUpdated;
+  const mostActiveRepoName = overview.mostActiveRepo || "";
 
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedLanguage("all");
     setSortBy("updated");
+    setSelectedVisibility("all");
+    setSelectedScope("all");
+    setHideForks(false);
+    setHideArchived(false);
   };
 
   const hasActiveFilters =
-    searchQuery || selectedLanguage !== "all" || sortBy !== "updated";
+    searchQuery ||
+    selectedLanguage !== "all" ||
+    sortBy !== "updated" ||
+    selectedVisibility !== "all" ||
+    selectedScope !== "all" ||
+    hideForks ||
+    hideArchived;
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,44 +148,52 @@ export function RepositoriesPage() {
         </div>
 
         {/* Page Header */}
-        <RepositoriesHeader lastSyncText="3:08:32 PM" />
+        <RepositoriesHeader lastSyncText={lastSyncText} />
 
         <RepositoriesOverview
-          totalRepos={totalRepos}
-          totalCommits={totalCommits}
-          totalStars={totalStars}
-          languagesUsed={languagesUsed}
-          privateRepos={privateRepos}
-          publicRepos={publicRepos}
           avgCommitsPerRepo={avgCommitsPerRepo}
+          languagesUsed={languagesUsed}
           lastUpdated={lastUpdated}
           mostActiveRepo={mostActiveRepoName}
+          privateRepos={privateRepos}
+          publicRepos={publicRepos}
+          totalCommits={totalCommits}
+          totalRepos={totalRepos}
+          totalStars={totalStars}
         />
 
-        <div className="space-y-4 mb-8">
+        <div className="mb-8 space-y-4">
           <RepositoriesToolbar
-            searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onToggleFilters={() => setShowFilters(!showFilters)}
+            searchQuery={searchQuery}
           />
 
           {showFilters && (
             <RepositoriesFilters
-              languages={languages}
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
               hasActiveFilters={!!hasActiveFilters}
+              languages={languages}
               onClearFilters={clearFilters}
+              onLanguageChange={setSelectedLanguage}
+              onSortChange={setSortBy}
+              selectedVisibility={selectedVisibility}
+              onVisibilityChange={(v) => setSelectedVisibility(v)}
+              selectedScope={selectedScope}
+              onScopeChange={(v) => setSelectedScope(v)}
+              hideForks={hideForks}
+              onHideForksChange={setHideForks}
+              hideArchived={hideArchived}
+              onHideArchivedChange={setHideArchived}
+              selectedLanguage={selectedLanguage}
+              sortBy={sortBy}
             />
           )}
-          
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+
+          <div className="flex items-center justify-between text-muted-foreground text-sm">
             <span>
               Showing {sortedRepos.length} of {totalRepos} repositories
             </span>
-            {hasActiveFilters && <span>Last updated: 3:09:12 PM</span>}
+            {hasActiveFilters && <span>Last updated: {lastUpdated}</span>}
           </div>
         </div>
 

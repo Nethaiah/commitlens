@@ -5,9 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Eye, GitBranch, GitFork, Star } from "lucide-react";
-import type { Repository } from "@/lib/mock-data";
+type RepoForCard = {
+  id: string;
+  name: string;
+  description: string;
+  language: string;
+  stars: number;
+  commits: { date?: string }[];
+};
 
-export function RepositoryCard({ repo }: { repo: Repository }) {
+export function RepositoryCard({ repo }: { repo: RepoForCard }) {
   const languageColors: Record<string, string> = {
     TypeScript: "#3178c6",
     Python: "#3776ab",
