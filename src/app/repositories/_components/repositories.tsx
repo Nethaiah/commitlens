@@ -23,6 +23,7 @@ type Repo = {
   forks?: number;
   defaultBranch?: string;
   totalCommits?: number;
+  branches?: number;
 };
 import { RepositoryCard } from "./repositories-card";
 import { RepositoriesEmptyState } from "./repositories-empty";
@@ -99,7 +100,10 @@ export default function RepositoriesPage(props: RepositoriesPageProps) {
       case "stars":
         return b.stars - a.stars;
       case "commits":
-        return b.commits.length - a.commits.length;
+        return (
+          (b.totalCommits ?? b.commits.length) -
+          (a.totalCommits ?? a.commits.length)
+        );
       default:
         return (
           new Date(b.commits[0]?.date || 0).getTime() -
@@ -109,8 +113,15 @@ export default function RepositoriesPage(props: RepositoriesPageProps) {
   });
 
   const totalRepos = overview.totalRepos;
-  const totalCommits = overview.totalCommits;
-  const totalStars = overview.totalStars;
+  // Filter-affected totals
+  const filteredTotalCommits = filteredRepos.reduce(
+    (sum, r) => sum + (r.totalCommits ?? r.commits.length ?? 0),
+    0
+  );
+  const filteredTotalStars = filteredRepos.reduce(
+    (sum, r) => sum + (r.stars ?? 0),
+    0
+  );
   const languagesUsed = overview.languagesUsed;
   const privateRepos = overview.privateRepos;
   const publicRepos = overview.publicRepos;
@@ -160,9 +171,9 @@ export default function RepositoriesPage(props: RepositoriesPageProps) {
           mostActiveRepo={mostActiveRepoName}
           privateRepos={privateRepos}
           publicRepos={publicRepos}
-          totalCommits={totalCommits}
+          totalCommits={filteredTotalCommits}
           totalRepos={totalRepos}
-          totalStars={totalStars}
+          totalStars={filteredTotalStars}
         />
 
         <div className="mb-8 space-y-4">

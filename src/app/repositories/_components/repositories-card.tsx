@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Eye, GitBranch, GitFork, Star } from "lucide-react";
+import { Eye, GitBranch, Star } from "lucide-react";
 type RepoForCard = {
   id: string;
   name: string;
@@ -16,6 +16,7 @@ type RepoForCard = {
   defaultBranch?: string;
   ownerLogin?: string;
   totalCommits?: number;
+  branches?: number;
 };
 
 export function RepositoryCard({ repo }: { repo: RepoForCard }) {
@@ -27,17 +28,30 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
   };
 
   const timeAgo = (iso?: string) => {
-    if (!iso) return "No recent commits";
+    const SECONDS_PER_MINUTE = 60;
+    const MINUTES_PER_HOUR = 60;
+    const HOURS_PER_DAY = 24;
+    if (!iso) {
+      return "No recent commits";
+    }
     const t = new Date(iso).getTime();
-    if (Number.isNaN(t)) return "No recent commits";
+    if (Number.isNaN(t)) {
+      return "No recent commits";
+    }
     const diff = Math.max(0, Date.now() - t);
     const s = Math.floor(diff / 1000);
-    const m = Math.floor(s / 60);
-    const h = Math.floor(m / 60);
-    const d = Math.floor(h / 24);
-    if (d > 0) return `${d} day${d === 1 ? "" : "s"} ago`;
-    if (h > 0) return `${h} hour${h === 1 ? "" : "s"} ago`;
-    if (m > 0) return `${m} minute${m === 1 ? "" : "s"} ago`;
+    const m = Math.floor(s / SECONDS_PER_MINUTE);
+    const h = Math.floor(m / MINUTES_PER_HOUR);
+    const d = Math.floor(h / HOURS_PER_DAY);
+    if (d > 0) {
+      return `${d} day${d === 1 ? "" : "s"} ago`;
+    }
+    if (h > 0) {
+      return `${h} hour${h === 1 ? "" : "s"} ago`;
+    }
+    if (m > 0) {
+      return `${m} minute${m === 1 ? "" : "s"} ago`;
+    }
     return `${s} second${s === 1 ? "" : "s"} ago`;
   };
 
@@ -75,8 +89,8 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
             <span>{repo.stars}</span>
           </div>
           <div className="flex items-center gap-1">
-            <GitFork className="h-4 w-4" />
-            <span>{repo.forks ?? 0}</span>
+            <GitBranch className="h-4 w-4" />
+            <span>{repo.branches ?? 0}</span>
           </div>
           <div className="flex items-center gap-1">
             <GitBranch className="h-4 w-4" />

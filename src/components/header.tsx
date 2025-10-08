@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { authClient } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { HeaderSkeleton } from "./header-skeleton";
 
 export function Header() {

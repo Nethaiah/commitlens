@@ -33,6 +33,7 @@ export type Repository = {
   forks?: number;
   defaultBranch?: string;
   totalCommits?: number;
+  branches?: number;
 };
 
 export type OverviewStats = {
@@ -58,20 +59,36 @@ function assertToken() {
   }
 }
 
-type GitHubRepo = {
-  id: number;
-  name: string;
-  full_name: string; // owner/repo
-  description: string | null;
-  language: string | null;
-  stargazers_count: number;
-  private: boolean;
-  fork: boolean;
-  archived: boolean;
-  owner: { login: string; type: "User" | "Organization" };
-  forks_count: number;
-  default_branch: string | null;
-};
+async function graphqlFetch<T>(
+  query: string,
+  variables?: Record<string, unknown>
+): Promise<T> {
+  assertToken();
+  const res = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "CommitLens-App",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+    cache: "no-store",
+    next: { revalidate: 0 },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`GitHub GraphQL error ${res.status}: ${text || res.statusText}`);
+  }
+  const json = (await res.json()) as { data?: T; errors?: unknown };
+  if (json.errors) {
+    throw new Error(`GitHub GraphQL returned errors: ${JSON.stringify(json.errors)}`);
+  }
+  return json.data as T;
+}
+
+// REST GitHubRepo type removed (we use GraphQL now for list-page accuracy)
 
 type GitHubCommitSummary = {
   sha: string;
@@ -115,40 +132,6 @@ async function githubFetch<T>(
   return (await res.json()) as T;
 }
 
-// Hoisted once for performance
-const LAST_PAGE_RE = /[?&]page=(\d+)>; rel="last"/;
-
-async function fetchTotalCommits(
-  owner: string,
-  repo: string,
-  branch?: string
-): Promise<number> {
-  assertToken();
-  const url = new URL(`https://api.github.com/repos/${owner}/${repo}/commits`);
-  url.searchParams.set("per_page", "1");
-  if (branch) url.searchParams.set("sha", branch);
-  const res = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "CommitLens-App",
-    },
-    cache: "no-store",
-    next: { revalidate: 0 },
-  });
-  if (!res.ok) return 0;
-  const link = res.headers.get("link");
-  if (link?.includes('rel="last"')) {
-    const match = link.match(LAST_PAGE_RE);
-    const page = match ? Number(match[1]) : Number.NaN;
-    if (!Number.isNaN(page)) return page;
-  }
-  // No Link header means 0 or 1 commits
-  const arr = (await res.json()) as unknown[];
-  return Array.isArray(arr) ? arr.length : 0;
-}
-
 function toCommit(summary: GitHubCommitSummary): Commit {
   const authorName =
     summary.commit.author?.name ||
@@ -173,24 +156,6 @@ function toCommit(summary: GitHubCommitSummary): Commit {
   };
 }
 
-function toRepository(repo: GitHubRepo, commits: Commit[]): Repository {
-  return {
-    id: String(repo.id),
-    name: repo.name,
-    description: repo.description ?? "",
-    language: repo.language ?? "Unknown",
-    stars: repo.stargazers_count ?? 0,
-    commits,
-    private: repo.private,
-    ownerLogin: repo.owner?.login,
-    ownerType: repo.owner?.type,
-    fork: repo.fork,
-    archived: repo.archived,
-    forks: repo.forks_count ?? 0,
-    defaultBranch: repo.default_branch ?? undefined,
-  };
-}
-
 export type ListReposParams = {
   perPageRepos?: number;
   page?: number;
@@ -206,58 +171,108 @@ export type ListReposParams = {
 export async function fetchUserRepositories(
   params: ListReposParams = {}
 ): Promise<Repository[]> {
-  const {
-    perPageRepos = 30,
-    page = 1,
-    sort = "updated",
-    direction = "desc",
-    visibility = "all",
-    affiliation = "owner,collaborator,organization_member",
-    since,
-    perPageCommits = 3,
-    includeTotalCommits = false,
-  } = params;
+  const { perPageRepos = 30 } = params;
 
-  const repos = await githubFetch<GitHubRepo[]>("/user/repos", {
-    per_page: perPageRepos,
-    page,
-    sort,
-    direction,
-    visibility,
-    affiliation,
-    since,
-  });
-
-  const results: Repository[] = [];
-  for (const r of repos) {
-    let commits: Commit[] = [];
-    try {
-      const ghCommits =
-        perPageCommits > 0
-          ? await githubFetch<GitHubCommitSummary[]>(
-              `/repos/${r.owner.login}/${r.name}/commits`,
-              { per_page: perPageCommits }
-            )
-          : [];
-      commits = ghCommits.map(toCommit);
-    } catch {
-      commits = [];
-    }
-    const repoObj = toRepository(r, commits);
-    if (includeTotalCommits) {
-      try {
-        repoObj.totalCommits = await fetchTotalCommits(
-          r.owner.login,
-          r.name,
-          r.default_branch ?? undefined
-        );
-      } catch {
-        repoObj.totalCommits = undefined;
+  const QUERY = /* GraphQL */ `
+    query ViewerRepos($first: Int!, $after: String) {
+      viewer {
+        repositories(
+          first: $first
+          after: $after
+          orderBy: { field: UPDATED_AT, direction: DESC }
+          affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+        ) {
+          nodes {
+            id
+            name
+            description
+            stargazerCount
+            isPrivate
+            isFork
+            isArchived
+            owner { login __typename }
+            primaryLanguage { name }
+            defaultBranchRef {
+              name
+              target {
+                ... on Commit {
+                  history(first: 1) {
+                    totalCount
+                    edges { node { committedDate oid messageHeadline author { name user { login } } } }
+                  }
+                }
+              }
+            }
+            refs(refPrefix: "refs/heads/", first: 1) { totalCount }
+            updatedAt
+            forkCount
+          }
+          pageInfo { hasNextPage endCursor }
+        }
       }
     }
-    results.push(repoObj);
-  }
-  return results;
+  `;
+
+  type RepoNode = {
+    id: string;
+    name: string;
+    description?: string | null;
+    stargazerCount: number;
+    isPrivate: boolean;
+    isFork: boolean;
+    isArchived: boolean;
+    owner?: { login: string; __typename: string } | null;
+    primaryLanguage?: { name: string } | null;
+    defaultBranchRef?: {
+      name?: string;
+      target?: {
+        history?: {
+          totalCount: number;
+          edges?: Array<{ node: { committedDate: string; oid: string; messageHeadline?: string; author?: { name?: string; user?: { login?: string } | null } | null } }>;
+        };
+      } | null;
+    } | null;
+    refs?: { totalCount: number } | null;
+    updatedAt: string;
+    forkCount: number;
+  };
+  type ViewerReposResponse = { viewer: { repositories: { nodes: RepoNode[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } };
+
+  const data = await graphqlFetch<ViewerReposResponse>(QUERY, {
+    first: perPageRepos,
+    after: null,
+  });
+  const nodes = data.viewer.repositories.nodes;
+  const repos: Repository[] = nodes.map((n) => {
+    const lastEdge = n.defaultBranchRef?.target?.history?.edges?.[0]?.node;
+    const totalCount = n.defaultBranchRef?.target?.history?.totalCount ?? 0;
+    const lastCommitDate: string | undefined = lastEdge?.committedDate ?? n.updatedAt;
+    const commitId: string | undefined = lastEdge?.oid;
+    const languageName: string = n.primaryLanguage?.name ?? "Unknown";
+    const ownerType = n.owner?.__typename === "Organization" ? "Organization" : "User";
+
+    const mapped: Repository = {
+      id: n.id,
+      name: n.name,
+      description: n.description ?? "",
+      language: languageName,
+      stars: n.stargazerCount ?? 0,
+      commits: lastCommitDate
+        ? [{ id: commitId ?? n.id, hash: commitId ?? n.id, message: lastEdge?.messageHeadline ?? "", author: lastEdge?.author?.name ?? n.owner?.login ?? "unknown", date: lastCommitDate, additions: 0, deletions: 0, files: [], diff: "", tags: [] }]
+        : [],
+      private: n.isPrivate ?? false,
+      ownerLogin: n.owner?.login ?? undefined,
+      ownerType,
+      fork: n.isFork ?? false,
+      archived: n.isArchived ?? false,
+      forks: n.forkCount ?? 0,
+      defaultBranch: n.defaultBranchRef?.name ?? undefined,
+      totalCommits: totalCount,
+      branches: n.refs?.totalCount ?? 0,
+    };
+    return mapped;
+  });
+  return repos;
 }
 
 export type FilterAndSortParams = {
@@ -313,7 +328,7 @@ export async function computeOverviewStats(
 ): Promise<OverviewStats> {
   const totalRepos = repos.length;
   const totalCommits = repos.reduce(
-    (sum, r) => sum + (r.commits?.length ?? 0),
+    (sum, r) => sum + (r.totalCommits ?? r.commits?.length ?? 0),
     0
   );
   const totalStars = repos.reduce((sum, r) => sum + (r.stars ?? 0), 0);
@@ -325,7 +340,9 @@ export async function computeOverviewStats(
     totalRepos > 0 ? Math.round(totalCommits / totalRepos) : 0;
   const lastUpdated = new Date().toLocaleDateString();
   const mostActiveRepo = [...repos].sort(
-    (a, b) => (b.commits?.length ?? 0) - (a.commits?.length ?? 0)
+    (a, b) =>
+      (b.totalCommits ?? b.commits?.length ?? 0) -
+      (a.totalCommits ?? a.commits?.length ?? 0)
   )?.[0]?.name;
   return {
     totalRepos,
