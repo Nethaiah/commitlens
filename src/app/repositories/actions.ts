@@ -1,7 +1,7 @@
 "use server";
 
 // Server actions for CommitLens Repositories page
-// Uses GitHub REST API with tokens from env: GITHUB_FINE_GRAINED_TOKEN (preferred) or GITHUB_CLASSIC_TOKEN
+// Primarily uses GitHub GraphQL API (token in env: GITHUB_FINE_GRAINED_TOKEN or GITHUB_CLASSIC_TOKEN)
 
 // Local types mirroring the UI shape (avoid importing client modules)
 export type Commit = {
@@ -88,73 +88,7 @@ async function graphqlFetch<T>(
   return json.data as T;
 }
 
-// REST GitHubRepo type removed (we use GraphQL now for list-page accuracy)
-
-type GitHubCommitSummary = {
-  sha: string;
-  commit: {
-    message: string;
-    author: { name: string; date: string } | null;
-    committer: { name: string; date: string } | null;
-  };
-  author: { login: string } | null;
-};
-
-async function githubFetch<T>(
-  path: string,
-  searchParams?: Record<string, string | number | undefined>
-): Promise<T> {
-  assertToken();
-  const url = new URL(`https://api.github.com${path}`);
-  if (searchParams) {
-    for (const [k, v] of Object.entries(searchParams)) {
-      if (v !== undefined && v !== null) {
-        url.searchParams.set(k, String(v));
-      }
-    }
-  }
-  const res = await fetch(url.toString(), {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "CommitLens-App",
-    },
-    cache: "no-store",
-    next: { revalidate: 0 },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `GitHub API error ${res.status}: ${text || res.statusText}`
-    );
-  }
-  return (await res.json()) as T;
-}
-
-function toCommit(summary: GitHubCommitSummary): Commit {
-  const authorName =
-    summary.commit.author?.name ||
-    summary.commit.committer?.name ||
-    summary.author?.login ||
-    "unknown";
-  const date =
-    summary.commit.author?.date ||
-    summary.commit.committer?.date ||
-    new Date().toISOString();
-  return {
-    id: summary.sha,
-    hash: summary.sha,
-    message: summary.commit.message,
-    author: authorName,
-    date,
-    additions: 0,
-    deletions: 0,
-    files: [],
-    diff: "",
-    tags: [],
-  };
-}
+// REST helpers removed; list flows are GraphQL. Use REST only if you later fetch file diffs per commit.
 
 export type ListReposParams = {
   perPageRepos?: number;
@@ -362,11 +296,65 @@ export async function fetchRepositoryCommits(
   repo: string,
   perPage = 10
 ): Promise<Commit[]> {
-  const summaries = await githubFetch<GitHubCommitSummary[]>(
-    `/repos/${owner}/${repo}/commits`,
-    { per_page: perPage }
-  );
-  return summaries.map(toCommit);
+  const QUERY = /* GraphQL */ `
+    query RepoCommits($owner: String!, $name: String!, $first: Int!) {
+      repository(owner: $owner, name: $name) {
+        defaultBranchRef {
+          target {
+            ... on Commit {
+              history(first: $first) {
+                edges {
+                  node {
+                    oid
+                    committedDate
+                    messageHeadline
+                    author { name user { login } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  type Resp = {
+    repository: {
+      defaultBranchRef?: {
+        target?: {
+          history?: {
+            edges?: Array<{
+              node: {
+                oid: string;
+                committedDate: string;
+                messageHeadline?: string;
+                author?: { name?: string; user?: { login?: string } | null } | null;
+              };
+            }>;
+          };
+        };
+      } | null;
+    } | null;
+  };
+  const data = await graphqlFetch<{ repository: Resp["repository"] }>(QUERY, {
+    owner,
+    name: repo,
+    first: perPage,
+  });
+  const edges =
+    data.repository?.defaultBranchRef?.target?.history?.edges ?? [];
+  return edges.map((e) => ({
+    id: e.node.oid,
+    hash: e.node.oid,
+    message: e.node.messageHeadline ?? "",
+    author: e.node.author?.name || e.node.author?.user?.login || "unknown",
+    date: e.node.committedDate,
+    additions: 0,
+    deletions: 0,
+    files: [],
+    diff: "",
+    tags: [],
+  }));
 }
 
 export async function getRepositories(
@@ -384,6 +372,7 @@ export async function getRepositoriesOverview(
 }
 
 export async function getCurrentUserLogin(): Promise<string> {
-  const me = await githubFetch<{ login: string; type: string }>("/user");
-  return me.login;
+  const QUERY = /* GraphQL */ 'query { viewer { login } }';
+  const data = await graphqlFetch<{ viewer: { login: string } }>(QUERY);
+  return data.viewer.login;
 }
