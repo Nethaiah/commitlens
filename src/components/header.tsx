@@ -3,11 +3,11 @@
 import { GitBranch } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { authClient } from "@/lib/auth-client";
-import { useState, useEffect } from "react";
 import { HeaderSkeleton } from "./header-skeleton";
 
 export function Header() {

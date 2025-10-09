@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Eye, GitBranch, Star } from "lucide-react";
+import { Eye, GitBranch, Star, GitFork } from "lucide-react";
 type RepoForCard = {
   id: string;
   name: string;
@@ -69,7 +69,9 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
             {repo.totalCommits ?? repo.commits.length}
           </Badge>
         </div>
-        <div className="text-sm text-muted-foreground">{repo.ownerLogin ?? "unknown"}</div>
+        <div className="text-sm text-muted-foreground">
+          {repo.ownerLogin ?? "unknown"}
+        </div>
         <CardDescription className="line-clamp-2 flex-1">
           {repo.description}
         </CardDescription>
@@ -80,7 +82,9 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
           <div className="flex items-center gap-1">
             <div
               className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: languageColors[repo.language] || "#6b7280" }}
+              style={{
+                backgroundColor: languageColors[repo.language] || "#6b7280",
+              }}
             />
             <span>{repo.language}</span>
           </div>
@@ -91,6 +95,10 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
           <div className="flex items-center gap-1">
             <GitBranch className="h-4 w-4" />
             <span>{repo.branches ?? 0}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <GitFork className="h-4 w-4" />
+            <span>{repo.forks ?? 0}</span>
           </div>
           <div className="flex items-center gap-1">
             <GitBranch className="h-4 w-4" />

@@ -9,7 +9,6 @@ import {
   getCurrentUserLogin,
   getRepositories,
 } from "./actions";
-import Loading from "./_components/loading";
 
 export default async function Repositories() {
   const session = await auth.api.getSession({
