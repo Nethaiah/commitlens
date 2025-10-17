@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -60,4 +60,21 @@ export const verification = pgTable("verification", {
     .notNull(),
 });
 
-export const schema = { user, session, account, verification }
+export const insight = pgTable("insight", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  rangeKey: text("range_key").notNull(),
+  repo: text("repo").notNull(),
+  data: jsonb("data").$type<{
+    peakPerformance: string;
+    avgCommitsOnPeak: number;
+    languageFocus: string;
+    languageFocusPercentage: number;
+    consistencyStreak: number;
+    consistencyRecord: number;
+  }>().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => /* @__PURE__ */ new Date()).notNull(),
+});
+
+export const schema = { user, session, account, verification, insight }

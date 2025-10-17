@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Eye, GitBranch, Star, GitFork } from "lucide-react";
 type RepoForCard = {
   id: string;
@@ -65,9 +66,14 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
               {repo.name}
             </CardTitle>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            {repo.totalCommits ?? repo.commits.length}
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="secondary" className="text-xs">
+                {repo.totalCommits ?? repo.commits.length}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>Commits</TooltipContent>
+          </Tooltip>
         </div>
         <div className="text-sm text-muted-foreground">
           {repo.ownerLogin ?? "unknown"}
@@ -88,22 +94,42 @@ export function RepositoryCard({ repo }: { repo: RepoForCard }) {
             />
             <span>{repo.language}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4" />
-            <span>{repo.stars}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <GitBranch className="h-4 w-4" />
-            <span>{repo.branches ?? 0}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <GitFork className="h-4 w-4" />
-            <span>{repo.forks ?? 0}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <GitBranch className="h-4 w-4" />
-            <span>{repo.defaultBranch ?? "default"}</span>
-          </div>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4" />
+                <span>{repo.stars}</span>
+              </div>
+              <TooltipContent>Stars</TooltipContent>
+            </TooltipTrigger>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex items-center gap-1">
+                <GitBranch className="h-4 w-4" />
+                <span>{repo.branches ?? 0}</span>
+              </div>
+              <TooltipContent>Branches</TooltipContent>
+            </TooltipTrigger>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex items-center gap-1">
+                <GitFork className="h-4 w-4" />
+                <span>{repo.forks ?? 0}</span>
+              </div>
+              <TooltipContent>Forks</TooltipContent>
+            </TooltipTrigger>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex items-center gap-1">
+                <GitBranch className="h-4 w-4" />
+                <span>{repo.defaultBranch ?? "default"}</span>
+              </div>
+              <TooltipContent>Default Branch</TooltipContent>
+            </TooltipTrigger>
+          </Tooltip>
         </div>
 
         <div className="mb-4 text-xs text-muted-foreground">

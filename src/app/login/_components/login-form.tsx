@@ -12,39 +12,28 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import { useTransition } from "react";
-import { authClient } from "@/lib/auth-client";
+import { useState } from "react";
+import { githubSignIn } from "../actions";
 
 export function LoginForm() {
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function handleGitHubLogin() {
+  const handleGitHubLogin = async () => {
     try {
-      await startTransition(async () => {
-        await authClient.signIn.social({
-          provider: "github",
-          callbackURL: "/repositories",
-          fetchOptions: {
-            onSuccess: () => {
-              toast.success("Login successful, you will be redirected...", {
-                duration: 3000,
-                position: "bottom-right",
-              });
-            },
-            onError: () => {
-              toast.error("GitHub sign-in failed.", {
-                duration: 3000,
-                position: "bottom-right",
-              });
-            }
-          }
-        });
+      setIsLoading(true);
+      await githubSignIn();
+      
+      toast.success("GitHub sign-in successful! Redirecting...", {
+        duration: 3000,
+        position: "bottom-right",
       });
     } catch {
       toast.error("GitHub sign-in failed.", {
         duration: 3000,
         position: "bottom-right",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -62,8 +51,10 @@ export function LoginForm() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <div className="mb-4 flex items-center justify-center gap-2">
-            <GitBranch className="h-8 w-8 text-primary" />
-            <span className="font-bold text-2xl">CommitLens</span>
+            <Link href="/">
+              <GitBranch className="h-8 w-8 text-primary" />
+              <span className="font-bold text-2xl">CommitLens</span>
+            </Link>
           </div>
           <p className="text-muted-foreground">
             Connect your GitHub account to get started
@@ -81,11 +72,11 @@ export function LoginForm() {
             {/* GitHub OAuth Button */}
             <Button
               className="h-12 w-full text-base"
-              disabled={isPending}
+              disabled={isLoading}
               onClick={handleGitHubLogin}
               size="lg"
             >
-              {isPending ? (
+              {isLoading ? (
                 <Spinner />
               ) : (
                 <Github className="mr-2 h-5 w-5" />
