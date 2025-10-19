@@ -58,8 +58,12 @@ export default function RepositoriesPage(props: RepositoriesPageProps) {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("updated");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedVisibility, setSelectedVisibility] = useState<"all" | "public" | "private">("all");
-  const [selectedScope, setSelectedScope] = useState<"all" | "owner" | "collaborator" | "organization">("all");
+  const [selectedVisibility, setSelectedVisibility] = useState<
+    "all" | "public" | "private"
+  >("all");
+  const [selectedScope, setSelectedScope] = useState<
+    "all" | "owner" | "collaborator" | "organization"
+  >("all");
   const [hideForks, setHideForks] = useState<boolean>(false);
   const [hideArchived, setHideArchived] = useState<boolean>(false);
 
@@ -112,15 +116,15 @@ export default function RepositoriesPage(props: RepositoriesPageProps) {
     }
   });
 
-  const totalRepos = overview.totalRepos;
+  const totalRepos = filteredRepos.length;
   // Filter-affected totals
   const filteredTotalCommits = filteredRepos.reduce(
     (sum, r) => sum + (r.totalCommits ?? r.commits.length ?? 0),
-    0
+    0,
   );
   const filteredTotalStars = filteredRepos.reduce(
     (sum, r) => sum + (r.stars ?? 0),
-    0
+    0,
   );
   const languagesUsed = overview.languagesUsed;
   const privateRepos = overview.privateRepos;
