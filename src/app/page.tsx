@@ -36,14 +36,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { Header } from "@/components/header";
 
 export default function Home() {
 	const [hoveredAvatar, setHoveredAvatar] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-background">
-      <Header/>
       <main className="container mx-auto px-4">
         {/* Hero Section */}
         <section className="py-20 text-center max-w-6xl mx-auto">

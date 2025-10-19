@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 
 type Insights = {
-  peakPerformance: string;
-  avgCommitsOnPeak: number;
-  languageFocus: string;
-  languageFocusPercentage: number;
-  consistencyStreak: number;
-  consistencyRecord: number;
+  paragraphs: string[];
 };
 
 export function ProductivityInsights({
@@ -31,8 +26,12 @@ export function ProductivityInsights({
   const sp = useSearchParams();
   const rangeKey = (sp.get("range") as "7d" | "30d" | "90d" | "1y" | "all") ?? "1y";
   const repo = sp.get("repo") ?? "All Repositories";
+  const countMode = sp.get("count") as "all" | "contrib" | null;
 
-  const payload = useMemo(() => ({ overview, languages, contributionWeeks }), [overview, languages, contributionWeeks]);
+  const payload = useMemo(
+    () => ({ overview, languages, contributionWeeks, countMode: countMode ?? undefined, repo }),
+    [overview, languages, contributionWeeks, countMode, repo],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,15 +83,7 @@ export function ProductivityInsights({
     }
   }
 
-  const peakText = insights
-    ? `Your most productive day is ${insights.peakPerformance} with an average of ${insights.avgCommitsOnPeak} commits. Consider scheduling important development work on this day.`
-    : undefined;
-  const langText = insights
-    ? `${insights.languageFocus} dominates your commits at ${insights.languageFocusPercentage}%. Consider diversifying your skill set or focusing deeper on this technology.`
-    : undefined;
-  const consistencyText = insights
-    ? `Your ${insights.consistencyStreak}-day current streak shows great consistency. Keep up the momentum to beat your record of ${insights.consistencyRecord} days!`
-    : undefined;
+  const paragraphs = insights?.paragraphs ?? null;
 
   return (
     <Card>
@@ -111,26 +102,17 @@ export function ProductivityInsights({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <h4 className="font-medium">Peak Performance</h4>
-            <p className="text-sm text-muted-foreground">
-              {loading ? (insights ? peakText : "No insights yet for this filter. Click Generate.") : insights ? peakText : "No insights yet for this filter. Click Generate."}
-            </p>
+        {loading && !paragraphs ? (
+          <p className="text-sm text-muted-foreground">Loading insights…</p>
+        ) : paragraphs && paragraphs.length > 0 ? (
+          <div className="space-y-3">
+            {paragraphs.map((p, i) => (
+              <p key={i} className="text-sm text-muted-foreground">{p}</p>
+            ))}
           </div>
-          <div className="space-y-2">
-            <h4 className="font-medium">Language Focus</h4>
-            <p className="text-sm text-muted-foreground">
-              {loading ? (insights ? langText : "") : insights ? langText : ""}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h4 className="font-medium">Consistency</h4>
-            <p className="text-sm text-muted-foreground">
-              {loading ? (insights ? consistencyText : "") : insights ? consistencyText : ""}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No insights yet for this filter. Click Generate.</p>
+        )}
       </CardContent>
     </Card>
   );

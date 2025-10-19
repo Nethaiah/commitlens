@@ -1,26 +1,69 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ContributionWeek, DashboardOverview, LanguageStat, MostProductiveDay } from "../actions";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import type {
+  ContributionWeek,
+  DashboardOverview,
+  LanguageStat,
+} from "../actions";
 import { RoundedPieChart } from "@/app/dashboard/_components/rounded-pie-chart";
 import { ContributionHeatmap } from "./contribution-heatmap";
 import { DashboardOverview as OverviewCards } from "./dashboard-overview";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DashboardHeader, type RepoOption } from "./dashboard-header";
 import { ProductivityInsights } from "./productivity-insights";
+import { useSearchParams } from "next/navigation";
 
 export type DashboardProps = {
   overview: DashboardOverview;
   languages: LanguageStat[];
-  mostProductiveDays: MostProductiveDay[];
   contributionWeeks: ContributionWeek[];
   repoOptions: RepoOption[];
+  selectedRepoCommitTotal?: number;
 };
 
 export default function DashboardPage(props: DashboardProps) {
-  const { overview, languages, mostProductiveDays, contributionWeeks, repoOptions } = props;
-  const barData = mostProductiveDays.map((d) => ({ label: d.day, value: d.commits }));
+  const {
+    overview,
+    languages,
+    contributionWeeks,
+    repoOptions,
+    selectedRepoCommitTotal,
+  } = props;
+  const sp = useSearchParams();
+  const selectedRepo = sp.get("repo") ?? "All Repositories";
+  const isRepoSelected = selectedRepo !== "All Repositories";
+  const countMode = (sp.get("count") === "contrib" ? "contrib" : "all") as
+    | "contrib"
+    | "all";
+  const DAYS_PER_YEAR = 365;
+  const repoTotal = selectedRepoCommitTotal ?? 0;
+  const repoAvgPerDay = useMemo(
+    () => Number(((repoTotal || 0) / DAYS_PER_YEAR).toFixed(2)),
+    [repoTotal],
+  );
+  const displayOverview: DashboardOverview = isRepoSelected
+    ? {
+        totalCommits: repoTotal,
+        activeDays: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        avgCommitsPerDay: repoAvgPerDay,
+      }
+    : overview;
   const years = useMemo(() => {
     const s = new Set<number>();
     for (const w of contributionWeeks) {
@@ -29,11 +72,13 @@ export default function DashboardPage(props: DashboardProps) {
     return Array.from(s).sort((a, b) => a - b);
   }, [contributionWeeks]);
   const [selectedYear, setSelectedYear] = useState<number>(
-    years.length ? years[years.length - 1] : new Date().getFullYear()
+    years.length ? years[years.length - 1] : new Date().getFullYear(),
   );
   const yearWeeks = useMemo(() => {
     if (!years.length) return contributionWeeks;
-    return contributionWeeks.filter((w) => w.days.some((d) => new Date(d.date).getFullYear() === selectedYear));
+    return contributionWeeks.filter((w) =>
+      w.days.some((d) => new Date(d.date).getFullYear() === selectedYear),
+    );
   }, [contributionWeeks, selectedYear, years]);
 
   return (
@@ -43,7 +88,11 @@ export default function DashboardPage(props: DashboardProps) {
           <DashboardHeader repoOptions={repoOptions} />
         </div>
 
-        <OverviewCards overview={overview} />
+        <OverviewCards
+          overview={displayOverview}
+          selectedRepo={isRepoSelected ? selectedRepo : undefined}
+          countMode={countMode}
+        />
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
@@ -53,17 +102,26 @@ export default function DashboardPage(props: DashboardProps) {
               subtitle="Distribution of commits by programming language"
             />
 
-            <ProductivityInsights overview={overview} languages={languages} contributionWeeks={contributionWeeks} />
+            <ProductivityInsights
+              overview={overview}
+              languages={languages}
+              contributionWeeks={contributionWeeks}
+            />
 
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Coding Activity</CardTitle>
-                    <CardDescription>Your commit activity over the past year</CardDescription>
+                    <CardDescription>
+                      Your commit activity in {selectedYear}
+                    </CardDescription>
                   </div>
                   {years.length > 0 && (
-                    <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+                    <Select
+                      value={String(selectedYear)}
+                      onValueChange={(v) => setSelectedYear(Number(v))}
+                    >
                       <SelectTrigger size="sm">
                         <SelectValue placeholder="Year" />
                       </SelectTrigger>
@@ -79,7 +137,10 @@ export default function DashboardPage(props: DashboardProps) {
                 </div>
               </CardHeader>
               <CardContent>
-                <ContributionHeatmap weeks={yearWeeks} />
+                <ContributionHeatmap
+                  weeks={yearWeeks}
+                  label={String(selectedYear)}
+                />
               </CardContent>
             </Card>
           </div>

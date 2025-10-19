@@ -5,9 +5,10 @@ import type { ContributionWeek } from "../actions";
 
 type Props = {
   weeks: ContributionWeek[];
+  label?: string;
 };
 
-export function ContributionHeatmap({ weeks }: Props) {
+export function ContributionHeatmap({ weeks, label }: Props) {
   const days = useMemo(() => weeks.flatMap((w) => w.days), [weeks]);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +58,7 @@ export function ContributionHeatmap({ weeks }: Props) {
     <div className="relative space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{totalContributions}</span> contributions in the last year
+          <span className="font-medium text-foreground">{totalContributions}</span> contributions in {label ?? "the last year"}
         </div>
       </div>
       {/* Month labels */}

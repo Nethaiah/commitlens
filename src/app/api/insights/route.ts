@@ -21,7 +21,26 @@ export async function GET(req: Request) {
       .where(and(eq(insight.userId, session.user.id), eq(insight.rangeKey, rangeKey), eq(insight.repo, repo)))
       .limit(1);
     if (!rows.length) return NextResponse.json({ notFound: true }, { status: 404 });
-    return NextResponse.json(rows[0].data);
+    const d: any = rows[0].data as any;
+    if (Array.isArray(d?.paragraphs)) {
+      return NextResponse.json(d);
+    }
+    if (
+      typeof d?.peakPerformance === "string" &&
+      typeof d?.avgCommitsOnPeak === "number" &&
+      typeof d?.languageFocus === "string" &&
+      typeof d?.languageFocusPercentage === "number" &&
+      typeof d?.consistencyStreak === "number" &&
+      typeof d?.consistencyRecord === "number"
+    ) {
+      const paragraphs = [
+        `Your most productive day tends to be ${d.peakPerformance}, averaging ${d.avgCommitsOnPeak} commits on that day.`,
+        `${d.languageFocus} is your most used language at ${d.languageFocusPercentage}%.`,
+        `You're currently on a ${d.consistencyStreak}-day streak. Your best streak so far is ${d.consistencyRecord} days.`,
+      ];
+      return NextResponse.json({ paragraphs });
+    }
+    return NextResponse.json({ notFound: true }, { status: 404 });
   } catch {
     // If table doesn't exist or DB error, treat as cache miss
     return NextResponse.json({ notFound: true }, { status: 404 });
@@ -38,6 +57,7 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       rangeKey: string;
       repo: string;
+      countMode?: "all" | "contrib";
       overview: {
         totalCommits: number;
         activeDays: number;
@@ -58,7 +78,6 @@ export async function POST(req: Request) {
       const topPct = body.languages[0]?.percentage ?? 0;
       const consistencyRecord = body.overview.longestStreak ?? 0;
       const consistencyStreak = body.overview.currentStreak ?? 0;
-      // compute peak day from last week of contributions
       const lastWeek = body.contributionWeeks.at(-1);
       const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
       let peakIdx = 0;
@@ -71,21 +90,30 @@ export async function POST(req: Request) {
           }
         }
       }
-      const payload = {
-        peakPerformance: dayNames[peakIdx],
-        avgCommitsOnPeak: peakVal,
-        languageFocus: topLang,
-        languageFocusPercentage: topPct,
-        consistencyStreak,
-        consistencyRecord,
-      } as const;
-      // Best-effort persist
+      const paragraphs: string[] = [];
+      paragraphs.push(
+        body.repo === "All Repositories"
+          ? `Across all repositories, you average ${body.overview.avgCommitsPerDay.toFixed(2)} commits/day with ${body.overview.totalCommits} total commits and ${body.overview.activeDays} active days.`
+          : `In ${body.repo}, you average ${body.overview.avgCommitsPerDay.toFixed(2)} commits/day with ${body.overview.totalCommits} commits.`
+      );
+      paragraphs.push(
+        `Your most productive day tends to be ${dayNames[peakIdx]}, averaging ${peakVal} commits. ${topLang} is the dominant language at ${topPct}%.`
+      );
+      paragraphs.push(
+        `You're on a ${consistencyStreak}-day streak; your record is ${consistencyRecord} days. Keep momentum to set a new high.`
+      );
+      if (body.countMode) {
+        paragraphs.push(
+          body.countMode === "all"
+            ? `Counting mode is set to All Authored Commits, which includes commits that may not count toward GitHub contributions (e.g., work on forks or non-default branches).`
+            : `Counting mode is set to Contributions, matching GitHub’s contribution rules (default branch or gh-pages, merged PRs).`
+        );
+      }
+      const payload = { paragraphs } as const;
       try {
         await db.delete(insight).where(and(eq(insight.userId, session.user.id), eq(insight.rangeKey, body.rangeKey), eq(insight.repo, body.repo)));
         await db.insert(insight).values({ userId: session.user.id, rangeKey: body.rangeKey, repo: body.repo, data: payload });
-      } catch {
-        // ignore DB errors
-      }
+      } catch {}
       return NextResponse.json(payload);
     }
 
@@ -105,13 +133,10 @@ export async function POST(req: Request) {
       parsed = JSON.parse(cleaned);
     }
 
-    // Best-effort persist
     try {
       await db.delete(insight).where(and(eq(insight.userId, session.user.id), eq(insight.rangeKey, body.rangeKey), eq(insight.repo, body.repo)));
       await db.insert(insight).values({ userId: session.user.id, rangeKey: body.rangeKey, repo: body.repo, data: parsed as any });
-    } catch {
-      // ignore DB errors
-    }
+    } catch {}
 
     return NextResponse.json(parsed);
   } catch (err) {
@@ -120,6 +145,8 @@ export async function POST(req: Request) {
 }
 
 function buildPrompt(input: {
+  repo?: string;
+  countMode?: "all" | "contrib";
   overview: {
     totalCommits: number;
     activeDays: number;
@@ -134,26 +161,23 @@ function buildPrompt(input: {
   }>;
 }) {
   const summary = JSON.stringify(input, null, 0);
-  return `You are an assistant that writes concise data-driven developer productivity insights.
-Use the provided JSON to compute:
-- Peak Performance: which weekday tends to have the highest commit counts across recent data; provide the weekday name and average commits that day.
-- Language Focus: the most dominant programming language and its percentage from the languages distribution provided.
-- Consistency: the user's current streak and their historical best streak from overview.
+  return `You are an assistant that writes concise, paragraph-based developer productivity insights.
+Use the provided JSON to produce 2-4 short paragraphs that summarize:
+- Overall activity and commit volume for the selected repository (or all repositories).
+- Peak performance day and its average commits.
+- Language focus (dominant language and its percentage).
+- Consistency (current streak and record).
+If countMode is provided, include a brief note about how this counting mode affects interpretation (e.g., All Authored vs Contributions).
 
-Return ONLY a JSON object with the exact fields:
+Return ONLY a JSON object:
 {
-  "peakPerformance": "<Weekday>",
-  "avgCommitsOnPeak": <number>,
-  "languageFocus": "<Language>",
-  "languageFocusPercentage": <number>,
-  "consistencyStreak": <number>,
-  "consistencyRecord": <number>
+  "paragraphs": ["<paragraph1>", "<paragraph2>", "<paragraph3>"]
 }
 
 Rules:
 - No extra commentary.
-- Keep numbers integers.
-- If data is insufficient, infer best effort from the most recent week.
+- Keep paragraphs concise and non-repetitive.
+- If data is insufficient, infer best effort from recent weeks.
 
 Data:
 ${summary}`;
