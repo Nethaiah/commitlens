@@ -4,9 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ContributionWeek, DashboardOverview, LanguageStat, MostProductiveDay } from "../actions";
 import { RoundedPieChart } from "@/app/dashboard/_components/rounded-pie-chart";
-import { MonochromeBarChart } from "@/app/dashboard/_components/most-productive-days";
 import { ContributionHeatmap } from "./contribution-heatmap";
-import { FourWeeksHeatmap } from "./four-weeks-heatmap";
 import { DashboardOverview as OverviewCards } from "./dashboard-overview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardHeader, type RepoOption } from "./dashboard-header";
@@ -54,16 +52,6 @@ export default function DashboardPage(props: DashboardProps) {
               title="Programming Languages"
               subtitle="Distribution of commits by programming language"
             />
-
-          <div className="grid gap-8 xl:grid-cols-2">
-            <MonochromeBarChart
-              data={barData}
-              subtitle="Daily commit activity over the past 7 days"
-              weeks={contributionWeeks}
-            />
-
-            <FourWeeksHeatmap weeks={contributionWeeks} />
-          </div>
 
             <ProductivityInsights overview={overview} languages={languages} contributionWeeks={contributionWeeks} />
 

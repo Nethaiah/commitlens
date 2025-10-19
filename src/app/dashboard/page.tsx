@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/header";
 import { auth } from "@/lib/auth";
 import DashboardPage from "./_components/dashboard";
 import { getDashboardData } from "./actions";
@@ -38,7 +37,6 @@ export default async function Dashboard({
 
   return (
     <div>
-      <Header />
       <DashboardPage
         overview={data.overview}
         languages={data.languages}

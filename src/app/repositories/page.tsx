@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/header";
 import { auth } from "@/lib/auth";
 import RepositoriesPage from "./_components/repositories";
 import {
@@ -35,7 +34,6 @@ export default async function Repositories() {
 
   return (
     <div>
-      <Header />
       <RepositoriesPage
         currentUserLogin={currentUserLogin}
         languages={languages}
