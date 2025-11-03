@@ -32,25 +32,25 @@ export type DashboardProps = {
   languages: LanguageStat[];
   contributionWeeks: ContributionWeek[];
   repoOptions: RepoOption[];
-  selectedRepoCommitTotal?: number;
 };
 
 export default function DashboardPage(props: DashboardProps) {
-  const {
-    overview,
-    languages,
-    contributionWeeks,
-    repoOptions,
-    selectedRepoCommitTotal,
-  } = props;
+  const { overview, languages, contributionWeeks, repoOptions } = props;
   const sp = useSearchParams();
-  const selectedRepo = sp.get("repo") ?? "All Repositories";
+  const [selectedRepo, setSelectedRepo] = useState(
+    sp.get("repo") ?? "All Repositories",
+  );
   const isRepoSelected = selectedRepo !== "All Repositories";
   const countMode = (sp.get("count") === "contrib" ? "contrib" : "all") as
     | "contrib"
     | "all";
   const DAYS_PER_YEAR = 365;
-  const repoTotal = selectedRepoCommitTotal ?? 0;
+  const repoTotal = useMemo(() => {
+    if (!isRepoSelected) return 0;
+    const repo = repoOptions.find((r) => r.name === selectedRepo);
+    return repo?.commits ?? 0;
+  }, [isRepoSelected, repoOptions, selectedRepo]);
+
   const repoAvgPerDay = useMemo(
     () => Number(((repoTotal || 0) / DAYS_PER_YEAR).toFixed(2)),
     [repoTotal],
@@ -85,7 +85,11 @@ export default function DashboardPage(props: DashboardProps) {
     <div className="min-h-screen bg-background">
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <DashboardHeader repoOptions={repoOptions} />
+          <DashboardHeader
+            repoOptions={repoOptions}
+            selectedRepo={selectedRepo}
+            onRepoChange={setSelectedRepo}
+          />
         </div>
 
         <OverviewCards

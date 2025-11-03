@@ -9,14 +9,25 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Eye, RefreshCw, Search, Download, Info } from "lucide-react";
 import { ExportModal } from "@/components/export-modal";
 
-export type RepoOption = { id: string; name: string; commits: number; affiliation?: "All" | "Owner" | "Collaborator" };
+export type RepoOption = {
+  id: string;
+  name: string;
+  commits: number;
+  affiliation?: "All" | "Owner" | "Collaborator";
+};
 
-export function DashboardHeader({ repoOptions }: { repoOptions: RepoOption[] }) {
+type DashboardHeaderProps = {
+  repoOptions: RepoOption[];
+  selectedRepo: string;
+  onRepoChange: (repo: string) => void;
+};
+
+export function DashboardHeader(props: DashboardHeaderProps) {
+  const { repoOptions, selectedRepo, onRepoChange } = props;
   const router = useRouter();
   const sp = useSearchParams();
-  const repo = sp.get("repo") ?? "All Repositories";
   const count = (sp.get("count") as "contrib" | "all") ?? "all";
-  const isAllRepos = repo === "All Repositories";
+  const isAllRepos = selectedRepo === "All Repositories";
 
   function updateParams(next: Record<string, string>) {
     const params = new URLSearchParams(sp.toString());
@@ -49,7 +60,7 @@ export function DashboardHeader({ repoOptions }: { repoOptions: RepoOption[] }) 
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="space-y-2">
             <div className="text-sm font-medium">Repository</div>
-            <Select value={repo} onValueChange={(v) => updateParams({ repo: v })}>
+            <Select value={selectedRepo} onValueChange={onRepoChange}>
               <SelectTrigger className="w-64">
                 <SelectValue placeholder="Select repository" />
               </SelectTrigger>
