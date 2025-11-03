@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { ContributionWeek, DashboardOverview, LanguageStat } from "../_actions/actions";
 import { Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSearchParams } from "next/navigation";
 
 type Insights = {
   paragraphs: string[];
@@ -23,14 +22,10 @@ export function ProductivityInsights({
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const sp = useSearchParams();
-  const rangeKey = (sp.get("range") as "7d" | "30d" | "90d" | "1y" | "all") ?? "1y";
-  const repo = sp.get("repo") ?? "All Repositories";
-  const countMode = sp.get("count") as "all" | "contrib" | null;
 
   const payload = useMemo(
-    () => ({ overview, languages, contributionWeeks, countMode: countMode ?? undefined, repo }),
-    [overview, languages, contributionWeeks, countMode, repo],
+    () => ({ overview, languages, contributionWeeks }),
+    [overview, languages, contributionWeeks],
   );
 
   useEffect(() => {
@@ -38,7 +33,7 @@ export function ProductivityInsights({
     async function loadCached() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/insights?range=${encodeURIComponent(rangeKey)}&repo=${encodeURIComponent(repo)}`, { cache: "no-store" });
+        const res = await fetch(`/api/insights?range=1y`, { cache: "no-store" });
         if (res.status === 404) {
           if (!cancelled) setInsights(null);
           return;
@@ -56,7 +51,7 @@ export function ProductivityInsights({
     return () => {
       cancelled = true;
     };
-  }, [payload, rangeKey, repo]);
+  }, [payload]);
 
   async function generate() {
     setGenerating(true);
@@ -64,7 +59,7 @@ export function ProductivityInsights({
       const res = await fetch("/api/insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rangeKey, repo, ...payload }),
+        body: JSON.stringify({ rangeKey: "1y", ...payload }),
       });
       if (!res.ok) {
         let msg = "Failed to generate insights";
@@ -111,7 +106,7 @@ export function ProductivityInsights({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No insights yet for this filter. Click Generate.</p>
+          <p className="text-sm text-muted-foreground">No insights yet. Click Generate.</p>
         )}
       </CardContent>
     </Card>
