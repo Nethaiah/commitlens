@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type { ContributionWeek } from "../actions";
+import type { ContributionWeek } from "../_actions/actions";
 
 type Props = {
   weeks: ContributionWeek[];

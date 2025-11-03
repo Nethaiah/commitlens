@@ -12,7 +12,7 @@ import type {
   ContributionWeek,
   DashboardOverview,
   LanguageStat,
-} from "../actions";
+} from "../_actions/actions";
 import { RoundedPieChart } from "@/app/dashboard/_components/rounded-pie-chart";
 import { ContributionHeatmap } from "./contribution-heatmap";
 import { DashboardOverview as OverviewCards } from "./dashboard-overview";

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
-import type { LanguageStat } from "../actions";
+import type { LanguageStat } from "../_actions/actions";
 
 export function RoundedPieChart({
   languages,

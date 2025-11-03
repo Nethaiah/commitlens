@@ -7,7 +7,7 @@ import {
   extractLanguages,
   getCurrentUserLogin,
   getRepositories,
-} from "./actions";
+} from "./_actions/actions";
 
 export default async function Repositories() {
   const session = await auth.api.getSession({

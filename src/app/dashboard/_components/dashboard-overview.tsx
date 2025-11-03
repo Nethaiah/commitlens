@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Flame, GitBranch, TrendingUp } from "lucide-react";
-import type { DashboardOverview } from "../actions";
+import type { DashboardOverview } from "../_actions/actions";
 
 export function DashboardOverview({ overview, selectedRepo, countMode }: { overview: DashboardOverview; selectedRepo?: string; countMode?: "contrib" | "all" }) {
   return (

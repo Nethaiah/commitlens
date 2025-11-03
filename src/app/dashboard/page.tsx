@@ -2,9 +2,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import DashboardPage from "./_components/dashboard";
-import { getDashboardData } from "./actions";
+import { getDashboardData } from "./_actions/actions";
 import { rangeKeyToDateRange } from "@/lib/date-range";
-import { getRepositories, getCurrentUserLogin } from "../repositories/actions";
+import { getRepositories, getCurrentUserLogin } from "../repositories/_actions/actions";
 
 export default async function Dashboard({
   searchParams,

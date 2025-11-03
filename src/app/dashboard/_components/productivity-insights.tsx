@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ContributionWeek, DashboardOverview, LanguageStat } from "../actions";
+import type { ContributionWeek, DashboardOverview, LanguageStat } from "../_actions/actions";
 import { Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
